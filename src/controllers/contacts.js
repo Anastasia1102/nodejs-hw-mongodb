@@ -11,6 +11,8 @@ import { parseSortParams } from '../utils/parseSortParams.js';
 import { parseFilterParams } from '../utils/parseFilterParams.js';
 
 export async function getContactsController(req, res) {
+  const userId = req.user._id;
+
   const { page, perPage } = parsePaginationParams(req.query);
 
   const { sortBy, sortOrder } = parseSortParams(req.query);
@@ -18,6 +20,7 @@ export async function getContactsController(req, res) {
   const filter = parseFilterParams(req.query);
 
   const contacts = await getAllContacts({
+    userId,
     page,
     perPage,
     sortBy,
@@ -34,7 +37,10 @@ export async function getContactsController(req, res) {
 
 export async function getContactByIdController(req, res) {
   const { contactId } = req.params;
-  const contact = await getContactById(contactId);
+
+  const userId = req.user._id;
+
+  const contact = await getContactById(contactId, userId);
 
   if (!contact) {
     throw createHttpError(404, 'Contact not found');
@@ -48,7 +54,9 @@ export async function getContactByIdController(req, res) {
 }
 
 export async function createContactController(req, res) {
-  const contact = await createContact(req.body);
+  const userId = req.user._id;
+
+  const contact = await createContact({ ...req.body, userId });
 
   res.status(201).json({
     status: 201,
@@ -59,7 +67,8 @@ export async function createContactController(req, res) {
 
 export async function updateContactByIdController(req, res) {
   const { contactId } = req.params;
-  const updated = await updateContact(contactId, req.body);
+  const userId = req.user._id;
+  const updated = await updateContact(contactId, req.body, userId);
 
   if (!updated) throw createHttpError(404, 'Contact not found');
 
@@ -72,7 +81,8 @@ export async function updateContactByIdController(req, res) {
 
 export async function deleteContactController(req, res) {
   const { contactId } = req.params;
-  const deleted = await deleteContact(contactId);
+  const userId = req.user._id;
+  const deleted = await deleteContact(contactId, userId);
   if (!deleted) throw createHttpError(404, 'Contact not found');
 
   return res.status(204).end();
