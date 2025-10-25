@@ -2,3 +2,9 @@ export const SORT_ORDER = {
   ASC: 'asc',
   DESC: 'desc',
 };
+
+export const CLOUDINARY = {
+  CLOUD_NAME: 'CLOUDINARY_CLOUD_NAME',
+  API_KEY: 'CLOUDINARY_API_KEY',
+  API_SECRET: 'CLOUDINARY_API_SECRET',
+};

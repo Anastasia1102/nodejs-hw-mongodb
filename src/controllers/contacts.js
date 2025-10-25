@@ -9,6 +9,7 @@ import createHttpError from 'http-errors';
 import { parsePaginationParams } from '../utils/parsePaginationParams.js';
 import { parseSortParams } from '../utils/parseSortParams.js';
 import { parseFilterParams } from '../utils/parseFilterParams.js';
+import { uploadToCloudinary } from '../utils/uploadToCloudinary.js';
 
 export async function getContactsController(req, res) {
   const userId = req.user._id;
@@ -55,8 +56,14 @@ export async function getContactByIdController(req, res) {
 
 export async function createContactController(req, res) {
   const userId = req.user._id;
+  const photo = req.file;
+  let photoUrl;
 
-  const contact = await createContact({ ...req.body, userId });
+  if (photo) {
+    photoUrl = await uploadToCloudinary(photo.path);
+  }
+
+  const contact = await createContact({ ...req.body, userId, photo: photoUrl });
 
   res.status(201).json({
     status: 201,
@@ -68,7 +75,17 @@ export async function createContactController(req, res) {
 export async function updateContactByIdController(req, res) {
   const { contactId } = req.params;
   const userId = req.user._id;
-  const updated = await updateContact(contactId, req.body, userId);
+  const photo = req.file;
+  let photoUrl;
+
+  if (photo) {
+    photoUrl = await uploadToCloudinary(photo.path);
+  }
+
+  const updated = await updateContact(contactId, userId, {
+    ...req.body,
+    ...(photoUrl && { photo: photoUrl }),
+  });
 
   if (!updated) throw createHttpError(404, 'Contact not found');
 
