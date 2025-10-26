@@ -1,0 +1,429 @@
+openapi: 3.1.0
+info:
+  version: 1.0.0
+  title: Contacts API
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  description: >
+    A secure and modern API for contact management with authentication, pagination, and Cloudinary photo uploads. Built with Node.js, Express, and MongoDB, this API enables user registration, login, password reset, and full CRUD operations on contacts.
+tags:
+  - name: Auth
+  - name: Contacts
+servers:
+  - url: http://localhost:3000
+  - url: https://nodejs-hw-mongodb-j596.onrender.com
+paths:
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      operationId: registerUser
+      description: Creates a new user account and returns user data (without password).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDto'
+      responses:
+        '201':
+          description: Successfully registered a user
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: integer, example: 201 }
+                  message:
+                    { type: string, example: Successfully registered a user! }
+                  data:
+                    $ref: '#/components/schemas/UserPublic'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '409': { $ref: '#/components/responses/Conflict' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in a user
+      operationId: loginUser
+      description: Authenticates a user and creates a new session with access and refresh tokens.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginDto'
+      responses:
+        '200':
+          description: Successfully logged in an user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      operationId: refreshSession
+      description: Generates new access and refresh tokens based on the refresh token stored in cookies.
+      responses:
+        '200':
+          description: Successfully refreshed a session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccessTokenResponse'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Log out user
+      operationId: logoutUser
+      description: Deletes the user's session and clears the refresh token cookie.
+      responses:
+        '204':
+          description: Successfully logged out (no content)
+
+  /auth/send-reset-email:
+    post:
+      tags: [Auth]
+      summary: Send password reset email
+      operationId: sendResetEmail
+      description: Sends a password reset link with a short-lived JWT token to the user's email.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendResetEmailDto'
+      responses:
+        '200':
+          description: Reset password email has been successfully sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: integer, example: 200 }
+                  message:
+                    {
+                      type: string,
+                      example: Reset password email has been successfully sent.,
+                    }
+                  data: { type: object, example: {} }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /auth/reset-pwd:
+    post:
+      tags: [Auth]
+      summary: Reset user password
+      operationId: resetPassword
+      description: Resets the user's password using a valid JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResetPwdDto'
+      responses:
+        '200':
+          description: Password has been successfully reset
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: integer, example: 200 }
+                  message:
+                    {
+                      type: string,
+                      example: Password has been successfully reset.,
+                    }
+                  data: { type: object, example: {} }
+        '400': { $ref: '#/components/responses/ValidationError' }
+        '401':
+          description: Token is expired or invalid
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: integer, example: 401 }
+                  message:
+                    { type: string, example: Token is expired or invalid. }
+                  data: { type: object, example: {} }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /contacts:
+    get:
+      tags: [Contacts]
+      summary: Get all contacts
+      operationId: getContacts
+      description: >
+        Retrieve a list of all contacts for the authenticated user with optional
+        pagination, sorting, and filtering by type or isFavourite.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, example: 1 }
+        - name: perPage
+          in: query
+          schema: { type: integer, example: 10 }
+        - name: sortBy
+          in: query
+          schema: { type: string, example: name }
+        - name: sortOrder
+          in: query
+          schema: { type: string, example: asc }
+        - name: type
+          in: query
+          schema: { type: string, example: personal }
+        - name: isFavourite
+          in: query
+          schema: { type: boolean, example: true }
+      responses:
+        '200':
+          description: Successfully found contacts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: integer, example: 200 }
+                  message:
+                    { type: string, example: Successfully found contacts! }
+                  data:
+                    type: object
+                    properties:
+                      data:
+                        type: array
+                        items: { $ref: '#/components/schemas/Contact' }
+                      page: { type: integer, example: 1 }
+                      perPage: { type: integer, example: 10 }
+                      totalItems: { type: integer, example: 25 }
+                      totalPages: { type: integer, example: 3 }
+                      hasPreviousPage: { type: boolean, example: false }
+                      hasNextPage: { type: boolean, example: true }
+
+    post:
+      tags: [Contacts]
+      summary: Create a new contact
+      operationId: createContact
+      description: Creates a new contact for the authenticated user with optional photo upload.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [name, phone]
+              properties:
+                name: { type: string, example: Alice Johnson }
+                phone: { type: string, example: '+380991234567' }
+                email: { type: string, example: alice@example.com }
+                contactType:
+                  { type: string, enum: [personal, work], example: personal }
+                isFavourite: { type: boolean, example: true }
+                photo:
+                  type: string
+                  format: binary
+                  description: Optional contact photo
+      responses:
+        '201':
+          description: Successfully created a contact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+
+  /contacts/{contactId}:
+    get:
+      tags: [Contacts]
+      summary: Get contact by ID
+      operationId: getContactById
+      description: Returns a single contact by ID for the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: contactId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Successfully found contact
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    patch:
+      tags: [Contacts]
+      summary: Update a contact
+      operationId: updateContact
+      description: Updates contact details or uploads a new photo.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: contactId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                name: { type: string, example: Alice Johnson }
+                email: { type: string, example: alice@example.com }
+                photo:
+                  type: string
+                  format: binary
+      responses:
+        '200': { $ref: '#/components/schemas/Contact' }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+    delete:
+      tags: [Contacts]
+      summary: Delete a contact
+      operationId: deleteContact
+      description: Deletes a contact belonging to the authenticated user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: contactId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '204': { description: Successfully deleted the contact }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+
+  schemas:
+    RegisterDto:
+      type: object
+      required: [name, email, password]
+      properties:
+        name: { type: string, example: Alice Johnson }
+        email: { type: string, example: alice@example.com }
+        password: { type: string, example: secret123 }
+
+    LoginDto:
+      type: object
+      required: [email, password]
+      properties:
+        email: { type: string, example: alice@example.com }
+        password: { type: string, example: secret123 }
+
+    SendResetEmailDto:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string, example: alice@example.com }
+
+    ResetPwdDto:
+      type: object
+      required: [token, password]
+      properties:
+        token:
+          { type: string, example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... }
+        password: { type: string, example: newSecret123 }
+
+    AccessTokenResponse:
+      type: object
+      properties:
+        status: { type: integer, example: 200 }
+        message: { type: string, example: Successfully logged in an user! }
+        data:
+          type: object
+          properties:
+            accessToken:
+              type: string
+              example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    UserPublic:
+      type: object
+      properties:
+        _id: { type: string, example: 672a91e4d97e3d23bbaec1e2 }
+        name: { type: string, example: Alice Johnson }
+        email: { type: string, example: alice@example.com }
+
+    Contact:
+      type: object
+      properties:
+        _id: { type: string, example: 672a91e4d97e3d23bbaec1e2 }
+        name: { type: string, example: Alice Johnson }
+        phone: { type: string, example: '+380991234567' }
+        email: { type: string, example: alice@example.com }
+        contactType: { type: string, example: personal }
+        isFavourite: { type: boolean, example: true }
+        photo:
+          {
+            type: string,
+            example: 'https://res.cloudinary.com/demo/image/upload/sample.jpg',
+          }
+        userId: { type: string, example: 672a91e4d97e3d23bbaec1e1 }
+
+  responses:
+    ValidationError:
+      description: Validation error
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status: { type: integer, example: 400 }
+              message: { type: string, example: Validation error }
+              data:
+                type: array
+                items: { type: string }
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status: { type: integer, example: 401 }
+              message: { type: string, example: Unauthorized }
+              data: { type: object }
+
+    Conflict:
+      description: Email in use
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status: { type: integer, example: 409 }
+              message: { type: string, example: Email in use }
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              status: { type: integer, example: 404 }
+              message: { type: string, example: Contact not found }
